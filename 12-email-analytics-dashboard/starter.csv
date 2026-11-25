@@ -1,0 +1,4 @@
+Sender,Subject,Date,Unread
+alex@example.com,Question,2026-11-01,TRUE
+alex@example.com,Follow-up,2026-11-02,FALSE
+jamie@example.com,Update,2026-11-02,TRUE

@@ -1,0 +1,5 @@
+Name,Email,City
+ Alice Johnson ,ALICE@example.com, Toronto 
+Bob,bad-email,Ottawa
+Alice Johnson,alice@example.com,Toronto
+,eve@example.com,Ajax

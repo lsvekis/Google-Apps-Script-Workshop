@@ -1,0 +1,4 @@
+SKU,Item,Stock,Reorder level
+A01,Paper,4,10
+A02,Pens,20,10
+A03,Folders,5,5

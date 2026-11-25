@@ -1,0 +1,2 @@
+Welcome {{NAME}}!
+Your program is {{PROGRAM}}. Start date: {{DATE}}.
