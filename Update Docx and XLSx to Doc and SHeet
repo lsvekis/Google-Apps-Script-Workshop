@@ -1,0 +1,162 @@
+/**
+ * Convert Office files into native Google files.
+ * Keep converted files in their existing folders.
+ * Preserve original files.
+ * Skip previously converted files.
+ */
+
+const ROOT_FOLDER = 'PASTE_YOUR_FOLDER_URL_HERE';
+
+const MAX_CONVERSIONS = 25;
+
+function convertWorkshopFiles() {
+  if (typeof Drive === 'undefined') {
+    throw new Error(
+      'Enable Drive API under Services in Apps Script.'
+    );
+  }
+
+  const folderId = ROOT_FOLDER.includes('/folders/')
+    ? ROOT_FOLDER.match(/\/folders\/([-\w]+)/)[1]
+    : ROOT_FOLDER.trim();
+
+  const root = DriveApp.getFolderById(folderId);
+
+  const stats = {
+    converted: 0,
+    skipped: 0,
+    failed: 0,
+    started: Date.now()
+  };
+
+  console.log('Processing: ' + root.getName());
+
+  convertFolder(root, stats);
+
+  console.log('========================');
+  console.log('Converted: ' + stats.converted);
+  console.log('Skipped: ' + stats.skipped);
+  console.log('Failed: ' + stats.failed);
+
+  if (shouldStop(stats)) {
+    console.log(
+      'Run convertWorkshopFiles again to continue.'
+    );
+  } else {
+    console.log('Folder scan completed.');
+  }
+}
+
+
+function convertFolder(folder, stats) {
+  if (shouldStop(stats)) return;
+
+  console.log('Folder: ' + folder.getName());
+
+  const files = folder.getFiles();
+
+  while (files.hasNext()) {
+    if (shouldStop(stats)) return;
+
+    const file = files.next();
+    const name = file.getName();
+
+    let targetMime;
+
+    if (/\.(docx|doc)$/i.test(name)) {
+      targetMime = MimeType.GOOGLE_DOCS;
+
+    } else if (/\.(xlsx|xls)$/i.test(name)) {
+      targetMime = MimeType.GOOGLE_SHEETS;
+
+    } else if (/\.(pptx|ppt)$/i.test(name)) {
+      targetMime = MimeType.GOOGLE_SLIDES;
+
+    } else {
+      continue;
+    }
+
+    if (file.getMimeType().startsWith(
+      'application/vnd.google-apps.'
+    )) {
+      continue;
+    }
+
+    const newName = name.replace(
+      /\.(docx|doc|xlsx|xls|pptx|ppt)$/i,
+      ''
+    );
+
+    try {
+      if (alreadyConverted(folder, newName, targetMime)) {
+        stats.skipped++;
+        continue;
+      }
+
+      const converted = Drive.Files.create(
+        {
+          name: newName,
+          mimeType: targetMime,
+
+          // Keep the file in its current folder.
+          parents: [folder.getId()]
+        },
+        file.getBlob(),
+        {
+          fields: 'id,name,webViewLink',
+          supportsAllDrives: true
+        }
+      );
+
+      stats.converted++;
+
+      console.log(
+        'Converted: ' + name +
+        ' -> ' + converted.name +
+        ' | Folder: ' + folder.getName()
+      );
+
+    } catch (error) {
+      stats.failed++;
+
+      console.error(
+        'Failed: ' + name + ' | ' + error.message
+      );
+    }
+  }
+
+  // Recursively process every subfolder.
+  const folders = folder.getFolders();
+
+  while (folders.hasNext()) {
+    if (shouldStop(stats)) return;
+
+    convertFolder(folders.next(), stats);
+  }
+}
+
+
+function alreadyConverted(folder, name, mimeType) {
+  const files = folder.getFilesByName(name);
+
+  while (files.hasNext()) {
+    const file = files.next();
+
+    if (
+      !file.isTrashed() &&
+      file.getMimeType() === mimeType
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
+function shouldStop(stats) {
+  return (
+    stats.converted >= MAX_CONVERSIONS ||
+    Date.now() - stats.started >= 240000
+  );
+}
